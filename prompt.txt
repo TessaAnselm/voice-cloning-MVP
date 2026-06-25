@@ -1,0 +1,158 @@
+You are a senior full-stack engineer, AI product builder, and cybersecurity safety reviewer.
+
+Build a complete proof-of-concept web application that demonstrates how a consent-based AI voice-cloning product could work. This is for a cybersecurity education video showing how easy it is to create this type of product from a single prompt, and what the security, privacy, and social engineering risks are.
+
+The app should allow a host to create a demo session, add participants, collect explicit consent from each participant, record a short voice sample from each consenting participant, and then allow the host to type a sentence that can be played back as a synthetic voice for that participant.
+
+## Important safety rules (non-negotiable product requirements, not suggestions)
+
+1. This app must be consent-based by design.
+2. Do not create hidden recording features.
+3. Do not record anyone without a visible consent step.
+4. Do not allow voice generation unless the participant has explicitly consented.
+5. Enforce consent checks in both the frontend and backend.
+6. Add clear warnings that generated audio is synthetic.
+7. Add a delete and revoke-consent button so a participant can remove their voice sample and withdraw consent.
+8. Store consent status, consent timestamp, and revocation timestamp.
+9. Add a safety note explaining that this technology can be misused for scams, impersonation, social engineering, fraud, and misinformation.
+10. Add comments in the code explaining where abuse-prevention controls are enforced.
+11. Do not build features for deception, impersonation, bypassing consent, or covert recording.
+12. **No file uploads for voice data, ever.** The app must only accept audio captured live through the browser microphone, in-app, during an active consent session. There must be no upload endpoint, no drag-and-drop, no "paste a link," and no way to import a pre-existing audio file as a voice sample. This is the control that prevents someone from typing their own consent phrase and then submitting a recording of a different person (e.g., a public figure, coworker, or family member) as the "sample."
+13. **Bind the consent phrase and the voice sample to one continuous capture.** The consent-phrase recording and the additional voice sample must be captured back-to-back in a single uninterrupted browser recording session (no pausing to swap source audio), and both clips must be tagged with the same capture session ID. The backend must reject an audio-sample submission whose capture session ID doesn't match an existing, completed consent-phrase recording for that participant.
+14. **Filter what the host is allowed to generate.** Before any generation request reaches the voice provider, run the input text through a content check that blocks/flags categories such as: financial authorization or payment instructions, one-time codes/PINs/passwords, requests to impersonate a named real-world public figure, urgent "send money now" / "wire transfer" phrasing, and impersonation of a person not in the session's participant list. Blocked attempts must be logged (not silently dropped) so the host dashboard can show "N generation attempts blocked by content policy" — this is itself a useful thing to show on camera.
+15. **Embed the disclosure in the audio, not just the UI.** Every generated clip must open or close with a spoken or clearly audible tone-based disclosure (e.g., a short spoken line or a distinct audio watermark tone) stating the audio is synthetic and was generated for a cybersecurity education demo. A UI label alone isn't enough, since the clip can be clipped out of the app and shared without it.
+16. **Auto-expire everything.** Consent records, audio samples, and generated clips must have an expiration policy (configurable TTL, default short — e.g., 24 hours) and must also be purged immediately when the host ends the session. No voice data should persist indefinitely by default.
+
+## Build the MVP using
+
+* Frontend: Next.js with TypeScript
+* Backend: FastAPI with Python
+* Database: SQLite
+* Audio capture: browser MediaRecorder API only (no file input elements anywhere in the audio-capture flow)
+* Voice generation: create a mock VoiceCloneProvider interface for now. The mock provider can return placeholder audio or use browser text-to-speech. Do not require a paid API key for the first version.
+* Structure the code so a real consent-based voice provider could be added later, and so the content-filter step and audio-watermark step are provider-agnostic (they wrap any provider, not just the mock).
+
+## Required user flow
+
+1. Host creates a session, optionally setting a data-retention TTL (defaults to 24 hours).
+2. Host manually adds participant names.
+3. Each participant receives or opens a unique participant page.
+4. Participant reviews a consent disclosure.
+5. Participant must click an explicit consent button before recording.
+6. Participant records, in one continuous browser-mic session: (a) the phrase "I consent to this voice sample being used for this cybersecurity education demo," then (b) a short additional voice sample — captured back-to-back, never as separate uploads.
+7. Host dashboard shows all participants, consent status, audio sample status, and a running count of blocked generation attempts.
+8. Host types a sentence.
+9. Host selects a consenting participant.
+10. The sentence passes through the content filter; if blocked, the host sees why and the attempt is logged.
+11. App generates or simulates synthetic voice playback, with the spoken/tone disclosure embedded in the output audio.
+12. App blocks generation for participants who have not consented, who revoked consent, or whose audio sample doesn't match a verified capture session.
+13. App labels every output as synthetic audio generated for a cybersecurity education demo, both visually and in the audio itself.
+14. Host can end the session at any time, which immediately purges all consent records, audio samples, and generated clips for that session.
+
+## Required pages
+
+* Host dashboard (including blocked-attempt counter)
+* Create session page (including retention TTL setting)
+* Participant consent page
+* Participant recording page (single continuous capture flow, no upload option)
+* Voice generation page (shows content-filter result before generating)
+* Safety and risk explanation page
+
+## Required backend endpoints
+
+* POST /sessions
+* GET /sessions/{session_id}
+* DELETE /sessions/{session_id} (host-triggered immediate purge of all session data)
+* POST /sessions/{session_id}/participants
+* POST /participants/{participant_id}/consent
+* POST /participants/{participant_id}/revoke-consent
+* POST /participants/{participant_id}/audio-sample (accepts only a payload tagged with a capture_session_id matching a completed consent-phrase recording; no generic file upload)
+* DELETE /participants/{participant_id}/audio-sample
+* POST /generate-voice (runs the content filter before calling the provider; logs blocked attempts)
+* GET /health
+
+## Required database tables
+
+* sessions — add `retention_ttl_seconds`, `expires_at`, `ended_at`
+* participants
+* audio_samples — add `capture_session_id`, `source` (must always be `live_recording`; no other value is valid), `expires_at`
+* generations — add `requested_by` (host/session admin id), `blocked` (bool), `blocked_reason` (nullable), `expires_at`
+* generation_attempts_blocked (or fold into `generations` with `blocked=true` rows) — used to power the dashboard counter and give an audit trail of filtered attempts
+
+The participants table should include:
+
+* id
+* session_id
+* display_name
+* participant_token
+* consent_status
+* consent_timestamp
+* revoke_timestamp
+* created_at
+
+The audio_samples table should include:
+
+* id
+* participant_id
+* capture_session_id
+* file_path
+* duration_seconds
+* created_at
+* expires_at
+* deleted_at
+
+The generations table should include:
+
+* id
+* session_id
+* participant_id
+* input_text
+* output_file_path
+* safety_label
+* blocked
+* blocked_reason
+* requested_by
+* created_at
+* expires_at
+
+## Required deliverables
+
+1. Full project folder structure.
+2. Complete frontend code.
+3. Complete backend code.
+4. Database models.
+5. API routes.
+6. Setup instructions.
+7. .env.example.
+8. README.md.
+9. SECURITY.md.
+10. Tests proving that generation is blocked when consent is missing.
+11. Tests proving that generation is blocked after consent is revoked.
+12. Tests proving that generation is blocked if the participant has no audio sample.
+13. Tests proving that an audio-sample submission is rejected if its capture_session_id doesn't match a completed consent-phrase recording.
+14. Tests proving that there is no upload endpoint/path for audio samples (only the live-capture flow works).
+15. Tests proving that flagged input text (e.g., a payment-authorization phrase) is blocked before reaching the voice provider, and that the block is logged.
+16. Tests proving that session/participant/audio/generation data is deleted once the TTL expires or the host ends the session.
+
+README.md should explain:
+
+* What the app does.
+* How to run it locally.
+* Why this is a cybersecurity education demo.
+* What risks voice cloning creates.
+* What safeguards are included (consent gating, live-capture-only, content filtering, embedded disclosure, auto-expiry).
+* What safeguards are still missing in a real-world product (e.g., liveness/anti-replay detection, cryptographic consent signing, identity verification beyond self-attestation, production-grade content moderation, legal review per jurisdiction).
+
+SECURITY.md should include:
+
+* Consent requirements.
+* Why uploads are disallowed and what that prevents.
+* Data deletion and retention TTL behavior.
+* Storage risks.
+* Abuse risks.
+* Social engineering risks.
+* Synthetic audio labeling (UI + embedded watermark).
+* Content-filtering scope and known limitations (it's a keyword/heuristic stub, not production moderation).
+* Recommended production safeguards.
+
+Make the first version simple, local, and runnable. Prioritize demonstrating the complete product flow over advanced UI design.
