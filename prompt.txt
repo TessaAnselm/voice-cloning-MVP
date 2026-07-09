@@ -1,122 +1,339 @@
 You are a senior full-stack engineer, AI product builder, and cybersecurity safety reviewer.
 
-Build a complete proof-of-concept web application that demonstrates how a consent-based AI voice-cloning product could work. This is for a cybersecurity education video showing how easy it is to create this type of product from a single prompt, and what the security, privacy, and social engineering risks are.
+Build a complete local proof-of-concept web application that demonstrates how a consent-based AI voice-cloning product could work. This is for a cybersecurity education demo showing how voice-cloning products can be built, what risks they create, and what safeguards should exist before this kind of technology is used in the real world.
 
-The app should allow a host to create a demo session, add participants, collect explicit consent from each participant, record a short voice sample from each consenting participant, and then allow the host to type a sentence that is played back as participant's OWN recorded voice.
+The app must allow a host to create a demo session, add participants, collect explicit consent from each participant, record a short live voice sample from each consenting participant, and allow the host to type a sentence that is played back using that participant’s own recorded voice.
 
-## Important safety rules (non-negotiable product requirements, not suggestions)
-1. This app must be consent-based by design.
+The first version should be simple, local, and runnable. Prioritize the complete product flow, safety controls, and clear code comments over advanced UI design.
+
+Non-negotiable safety requirements
+
+1. The app must be consent-based by design.
 2. Do not create hidden recording features.
 3. Do not record anyone without a visible consent step.
 4. Do not allow voice generation unless the participant has explicitly consented.
 5. Enforce consent checks in both the frontend and backend.
-6. Add clear warnings that generated audio is participants voice.
-7. Add a delete and revoke-consent button so a participant can remove their voice sample and withdraw consent.
+6. Show clear warnings that generated audio is a synthetic voice clone based on the participant’s recorded voice.
+7. Add a delete button and a revoke-consent button so a participant can remove their voice sample and withdraw consent.
 8. Store consent status, consent timestamp, and revocation timestamp.
-9. Add a safety note explaining that this technology can be misused for scams, impersonation, social engineering, fraud, and misinformation.
-10. Add comments in the code explaining where abuse-prevention controls are enforced.
-11. Do not build features for deception, impersonation, bypassing consent, or covert recording.
-12. No file uploads for voice data, ever. The app must only accept audio captured live through the browser microphone, in-app, during an active consent session. There must be no upload endpoint, no drag-and-drop, no "paste a link," and no way to import a pre-existing audio file as a voice sample. This is the control that prevents someone from typing their own consent phrase and then submitting a recording of a different person (e.g., a public figure, coworker, or family member) as the "sample."
-13. Bind the consent phrase and the voice sample to one continuous capture. The consent-phrase recording and the additional voice sample must be captured back-to-back in a single uninterrupted browser recording session (no pausing to swap source audio), and both clips must be tagged with the same capture session ID. The backend must reject an audio-sample submission whose capture session ID doesn't match an existing, completed consent-phrase recording for that participant.
-14. Filter what the host is allowed to generate. Before any generation request reaches the voice provider, run the input text through a content check that blocks/flags categories such as: financial authorization or payment instructions, one-time codes/PINs/passwords, requests to impersonate a named real-world public figure, urgent "send money now" / "wire transfer" phrasing, and impersonation of a person not in the session's participant list. Blocked attempts must be logged (not silently dropped) so the host dashboard can show "N generation attempts blocked by content policy."
-15. Auto-expire everything. Consent records, audio samples, and generated clips must have an expiration policy (configurable TTL, default short — e.g., 24 hours) and must also be purged immediately when the host ends the session. No voice data should persist indefinitely by default.
+9. Add a safety page explaining that voice cloning can be misused for scams, impersonation, social engineering, fraud, harassment, misinformation, and unauthorized recordings.
+10. Add code comments explaining where abuse-prevention controls are enforced.
+11. Do not build features for deception, impersonation, bypassing consent, covert recording, or recording people who are not part of the session.
+12. Do not include public figure impersonation features.
+13. Do not include file uploads for voice data. The app must only accept audio captured live through the browser microphone during an active consent session. There must be no upload endpoint, no drag-and-drop upload, no “paste a link,” and no way to import a pre-existing audio file as a voice sample.
+14. Bind the consent phrase and the voice sample to one continuous capture. The participant must record the consent phrase and the additional voice sample back-to-back in one uninterrupted browser recording session. Both clips must be tagged with the same capture_session_id.
+15. The backend must reject an audio-sample submission if its capture_session_id does not match a completed consent-phrase recording for that participant.
+16. Filter what the host is allowed to generate. Before any generation request reaches the voice provider, run the input text through a content check that blocks or flags categories such as:
+    * Financial authorization
+    * Payment instructions
+    * Wire-transfer requests
+    * One-time codes, PINs, or passwords
+    * Urgent “send money now” language
+    * Attempts to impersonate a real-world public figure
+    * Attempts to impersonate someone who is not in the session participant list
+    * Requests that sound like fraud, threats, harassment, or social engineering
+17. Blocked generation attempts must be logged. Do not silently drop them. The host dashboard must show a running count of blocked generation attempts.
+18. Add an embedded spoken disclosure to every generated audio clip, such as: “This is AI-generated audio created for a consent-based cybersecurity education demo.”
+19. Auto-expire all session data. Consent records, audio samples, and generated clips must have a configurable TTL. The default TTL should be short, such as 24 hours.
+20. When the host ends a session, immediately purge all consent records, audio samples, and generated clips for that session.
+21. No voice data should persist indefinitely by default.
 
-## Build the MVP using
+Tech stack
+
+Use the following stack:
+
 * Frontend: Next.js with TypeScript
 * Backend: FastAPI with Python
 * Database: SQLite
-* Audio capture: browser MediaRecorder API only (no file input elements anywhere in the audio-capture flow)
-* Voice generation: REAL zero-shot voice including participants tone, cadence and pitch.
+* Audio capture: Browser MediaRecorder API only
+* Voice generation: Local voice-cloning provider interface with a clearly labeled fallback option
 
-## Voice generation — REAL cloning, not TTS
-The output MUST reproduce the participant's OWN recorded voice, not a generic system voice. 
+There must be no file input element anywhere in the participant audio-capture flow.
 
-Implement a VoiceCloneProvider interface with a real zero-shot voice-cloning model that conditions generation on the participant's recorded audio sample:
-* Default provider (LocalCloneProvider): a local, open-source zero-shot TTS model that clones from a short reference clip and requires no paid API key. Use Coqui XTTS-v2 (or an equivalent such as F5-TTS or OpenVoice v2) running locally via a Python package. Its generate() method takes (a) the target text and (b) the participant's recorded reference audio, and returns speech in that participant's voice.
-* The generate() call MUST pass the participant's stored audio sample as the speaker/reference clip. Generation without a matching, verified reference sample must fail.
-* Keep a SECOND provider class, BrowserTTSProvider, ONLY as an offline fallback for environments where the model can't load — clearly labeled "fallback, does not clone." Never make it the default; the app must warn on-screen when the fallback is active.
-* Keep the interface provider-agnostic so the content-filter step and the embedded audio-disclosure/watermark step wrap ANY provider (real or fallback) identically.
-* Provide setup instructions and requirements for the model (pip install, model download, ffmpeg). Note approximate first-run model download size and that a GPU is optional but faster.
-* The embedded spoken/tone disclosure (rule 15) must be concatenated onto every generated clip regardless of which provider produced it.
+Voice generation requirements
 
-## Required user flow
-1. Host creates a session, optionally setting a data-retention TTL (defaults to 24 hours).
-2. Host manually adds participant names.
-3. Each participant receives or opens a unique participant page.
-4. Participant reviews a consent disclosure.
-5. Participant must click an explicit consent button before recording.
-6. Participant records, in one continuous browser-mic session: (a) the phrase "I consent to this voice sample being used for this cybersecurity education demo," then (b) a short additional voice sample — captured back-to-back, never as separate uploads.
-7. Host dashboard shows all participants, consent status, audio sample status, and a running count of blocked generation attempts.
-8. Host types a sentence.
-9. Host selects a consenting participant.
-10. The sentence passes through the content filter; if blocked, the host sees why and the attempt is logged.
-11. App generates participants voice playback that clones the selected participant's recorded voice, with the spoken/tone disclosure embedded in the output audio.
-12. App blocks generation for participants who have not consented, who revoked consent, or whose audio sample doesn't match a verified capture session.
-13. Host can end the session at any time, which immediately purges all consent records, audio samples, and generated clips for that session.
+The app should be structured around a provider interface called VoiceCloneProvider.
 
-## Required pages
-* Host dashboard (including blocked-attempt counter)
-* Create session page (including retention TTL setting)
-* Participant consent page
-* Participant recording page (single continuous capture flow, no upload option)
-* Voice generation page (shows content-filter result before generating)
-* Safety and risk explanation page
+Create two provider classes:
 
-## Required backend endpoints
+1. LocalCloneProvider
+    * This is the default provider.
+    * It should use a local open-source voice-cloning or zero-shot TTS model that can condition generation on a short reference clip.
+    * Suggested options include Coqui XTTS-v2, F5-TTS, or OpenVoice v2.
+    * The generate() method must take:
+        * target text
+        * participant reference audio path
+        * participant ID
+        * session ID
+    * Generation must fail if the participant does not have a matching verified reference sample.
+    * The provider call must pass the participant’s own stored live-captured audio sample as the speaker/reference clip.
+2. BrowserTTSProvider
+    * This is only an offline fallback for environments where the local model cannot load.
+    * It must be clearly labeled: “Fallback only. This does not clone voices.”
+    * It must never be the default provider.
+    * The app must show an on-screen warning when the fallback provider is active.
+
+Keep the provider interface flexible so that consent checks, content filtering, logging, and embedded audio disclosure wrap every provider in the same way.
+
+The generated audio must always include the spoken disclosure, regardless of which provider produced it.
+
+Required user flow
+
+1. Host creates a session.
+2. Host optionally sets a data-retention TTL. Default is 24 hours.
+3. Host manually adds participant names.
+4. Each participant receives or opens a unique participant page.
+5. Participant reviews a consent disclosure.
+6. Participant clicks an explicit consent button before recording.
+7. Participant records one continuous browser-microphone session:
+    * First, the participant says: “I consent to this voice sample being used for this cybersecurity education demo.”
+    * Then, without stopping or uploading anything, the participant records a short additional voice sample.
+8. Backend stores the capture_session_id and validates that the consent phrase and sample belong to the same uninterrupted capture flow.
+9. Host dashboard shows:
+    * Participants
+    * Consent status
+    * Audio sample status
+    * Revocation status
+    * Expiration time
+    * Blocked generation attempt count
+10. Host types a sentence.
+11. Host selects a consenting participant.
+12. App runs the input sentence through the content filter.
+13. If the input is blocked, the host sees the reason and the attempt is logged.
+14. If the input passes, the app generates audio using the selected participant’s own reference sample.
+15. The generated clip includes the embedded spoken disclosure.
+16. App blocks generation if:
+
+* Participant has not consented
+* Participant revoked consent
+* Participant has no audio sample
+* Participant’s audio sample is deleted
+* Participant’s capture_session_id is invalid
+* Session expired
+* Session ended
+
+17. Host can end the session at any time.
+18. Ending the session immediately purges all session data, participant consent records, audio samples, and generated clips.
+
+Required pages
+
+Create these pages:
+
+1. Create session page
+    * Includes retention TTL setting
+    * Explains that the demo is local and consent-based
+2. Host dashboard
+    * Shows participants
+    * Shows consent status
+    * Shows audio sample status
+    * Shows revoked consent status
+    * Shows expiration time
+    * Shows blocked generation attempt counter
+    * Includes end-session button
+3. Participant consent page
+    * Shows plain-language consent disclosure
+    * Explains what will be recorded
+    * Explains how generated audio will be used
+    * Explains that the participant can revoke consent
+    * Requires explicit consent button
+4. Participant recording page
+    * Uses browser MediaRecorder API
+    * Uses one continuous live microphone capture
+    * No upload option
+    * No file picker
+    * No drag-and-drop
+    * No external audio import
+5. Voice generation page
+    * Lets host select a consenting participant
+    * Lets host type text
+    * Shows content-filter result before generation
+    * Shows blocked reason if blocked
+    * Plays generated audio if allowed
+    * Displays clear warning that the audio is AI-generated
+6. Safety and risk explanation page
+    * Explains misuse risks
+    * Explains included safeguards
+    * Explains missing safeguards for real-world production use
+
+Required backend endpoints
+
+Create these endpoints:
+
 * POST /sessions
 * GET /sessions/{session_id}
-* DELETE /sessions/{session_id} (host-triggered immediate purge of all session data)
+* DELETE /sessions/{session_id}
 * POST /sessions/{session_id}/participants
 * POST /participants/{participant_id}/consent
 * POST /participants/{participant_id}/revoke-consent
-* POST /participants/{participant_id}/audio-sample (accepts only a payload tagged with a capture_session_id matching a completed consent-phrase recording; no generic file upload)
+* POST /participants/{participant_id}/audio-sample
 * DELETE /participants/{participant_id}/audio-sample
-* POST /generate-voice (runs the content filter before calling the provider; passes the participant's reference sample to the cloning model; logs blocked attempts)
+* POST /generate-voice
 * GET /health
 
-## Required database tables
-* sessions — include retention_ttl_seconds, expires_at, ended_at
-* participants — id, session_id, display_name, participant_token, consent_status, consent_timestamp, revoke_timestamp, created_at
-* audio_samples — id, participant_id, capture_session_id, source (must always be live_recording; no other value is valid), file_path, duration_seconds, created_at, expires_at, deleted_at
-* generations — id, session_id, participant_id, input_text, output_file_path, safety_label, blocked, blocked_reason, requested_by, created_at, expires_at
-* generation_attempts_blocked (or fold into generations with blocked=true rows) — powers the dashboard counter and gives an audit trail of filtered attempts
+Important endpoint rules:
 
-## Required deliverables
-1. Full project folder structure.
-2. Complete frontend code.
-3. Complete backend code.
-4. Database models.
-5. API routes.
-6. Setup instructions (including the voice-cloning model install/download).
-7. .env.example.
-8. README.md.
-9. SECURITY.md.
-10. Tests proving generation is blocked when consent is missing.
-11. Tests proving generation is blocked after consent is revoked.
-12. Tests proving generation is blocked if the participant has no audio sample.
-13. Tests proving an audio-sample submission is rejected if its capture_session_id doesn't match a completed consent-phrase recording.
-14. Tests proving there is no upload endpoint/path for audio samples (only the live-capture flow works).
-15. Tests proving flagged input text (e.g., a payment-authorization phrase) is blocked before reaching the voice provider, and that the block is logged.
-16. Tests proving the cloning provider is called with the participant's own reference sample (i.e., generation is conditioned on the recorded voice, and fails without it).
-17. Tests proving session/participant/audio/generation data is deleted once the TTL expires or the host ends the session.
+* POST /participants/{participant_id}/audio-sample must only accept live browser-recorded audio tagged with a valid capture_session_id.
+* Do not create any generic file upload endpoint.
+* Do not create any endpoint that imports voice data from a URL, local file path, cloud storage link, or uploaded file.
+* POST /generate-voice must run the content filter before calling the voice provider.
+* POST /generate-voice must log blocked attempts.
+* POST /generate-voice must pass the participant’s own reference sample to the cloning provider.
+* DELETE /sessions/{session_id} must immediately purge all data for that session.
 
-README.md should explain:
-* What the app does.
-* How to run it locally (including installing and downloading the voice-cloning model).
-* Why this is a cybersecurity education demo.
-* What risks voice cloning creates.
-* What safeguards are included (consent gating, live-capture-only, content filtering, embedded disclosure, auto-expiry).
-* What safeguards are still missing in a real-world product (e.g., liveness/anti-replay detection, cryptographic consent signing, identity verification beyond self-attestation, production-grade content moderation, legal review per jurisdiction).
+Required database tables
 
-SECURITY.md should include:
-* Consent requirements.
-* Why uploads are disallowed and what that prevents.
-* Data deletion and retention TTL behavior.
-* Storage risks.
-* Abuse risks.
-* Social engineering risks.
-* Content-filtering scope and known limitations (it's a keyword/heuristic stub, not production moderation).
-* Added risk that the output is a real voice clone, and why the embedded audio watermark matters.
-* Recommended production safeguards.
+Create these database tables:
 
-Make the first version simple, local, and runnable. Prioritize demonstrating the complete product flow — including real voice cloning of the recorded participant — over advanced UI design.
+sessions
+
+Fields:
+
+* id
+* retention_ttl_seconds
+* expires_at
+* ended_at
+* created_at
+
+participants
+
+Fields:
+
+* id
+* session_id
+* display_name
+* participant_token
+* consent_status
+* consent_timestamp
+* revoke_timestamp
+* created_at
+
+capture_sessions
+
+Fields:
+
+* id
+* participant_id
+* capture_session_id
+* consent_phrase_completed
+* sample_completed
+* started_at
+* completed_at
+* invalidated_at
+
+audio_samples
+
+Fields:
+
+* id
+* participant_id
+* capture_session_id
+* source
+* file_path
+* duration_seconds
+* created_at
+* expires_at
+* deleted_at
+
+Rules:
+
+* source must always be live_recording.
+* No other source value is valid.
+
+generations
+
+Fields:
+
+* id
+* session_id
+* participant_id
+* input_text
+* output_file_path
+* safety_label
+* blocked
+* blocked_reason
+* requested_by
+* created_at
+* expires_at
+
+Blocked attempts can either be stored in the generations table with blocked=true or in a separate generation_attempts_blocked table.
+
+generation_attempts_blocked
+
+Fields:
+
+* id
+* session_id
+* participant_id
+* input_text
+* blocked_reason
+* requested_by
+* created_at
+
+Use this table only if you choose not to store blocked rows in generations.
+
+Required backend logic
+
+Implement:
+
+1. Consent validation
+    * Participant must have active consent.
+    * Participant must not have revoked consent.
+    * Session must not be expired or ended.
+2. Audio sample validation
+    * Participant must have a live-recorded audio sample.
+    * Audio sample must not be deleted.
+    * Audio sample must not be expired.
+    * capture_session_id must match a completed capture session for that participant.
+3. Content filtering
+    * Implement a simple keyword and heuristic-based filter.
+    * It is acceptable for the MVP to be a stub, but it must be clearly documented as not production-grade.
+    * It must block obvious fraud and impersonation text before the provider is called.
+4. Blocked attempt logging
+    * Log blocked input text, blocked reason, participant ID, session ID, and timestamp.
+5. Data expiration
+    * Include cleanup logic for expired sessions, audio samples, and generated clips.
+    * Enforce expiration checks before generation.
+    * Purge all data when the host ends a session.
+6. Provider wrapping
+    * The content filter must run before provider.generate().
+    * The provider must not be called if the content filter blocks the request.
+    * The provider must not be called if consent checks fail.
+    * The provider must not be called if reference audio is missing or invalid.
+    * Every generated audio clip must include the spoken disclosure.
+
+Required tests
+
+Create tests proving:
+
+1. Generation is blocked when consent is missing.
+2. Generation is blocked after consent is revoked.
+3. Generation is blocked if the participant has no audio sample.
+4. Audio-sample submission is rejected if capture_session_id does not match a completed consent-phrase recording.
+5. There is no upload endpoint or import path for audio samples.
+6. Flagged input text, such as a payment-authorization phrase, is blocked before reaching the voice provider.
+7. Blocked generation attempts are logged.
+8. The cloning provider is called with the participant’s own reference sample.
+9. Generation fails if the participant’s verified reference sample is missing.
+10. Session, participant, audio, and generation data are deleted once the TTL expires.
+11. Session, participant, audio, and generation data are deleted when the host ends the session.
+12. BrowserTTSProvider is not used by default.
+13. The UI clearly warns when BrowserTTSProvider fallback mode is active.
+
+Required deliverables
+
+Provide:
+
+1. Full project folder structure
+2. Complete frontend code
+3. Complete backend code
+4. Database models
+5. API routes
+6. Provider interface and provider classes
+7. Content-filter logic
+8. Data-expiration logic
+9. Setup instructions
+10. .env.example
+11. README.md
+12. SECURITY.md
+13. Backend tests
+14. Frontend safety-flow tests where practical
