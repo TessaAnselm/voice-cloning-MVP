@@ -2,7 +2,7 @@ You are a senior full-stack engineer, AI product builder, and cybersecurity safe
 
 Build a complete proof-of-concept web application that demonstrates how a consent-based AI voice-cloning product could work. This is for a cybersecurity education video showing how easy it is to create this type of product from a single prompt, and what the security, privacy, and social engineering risks are.
 
-The app should allow a host to create a demo session, add participants, collect explicit consent from each participant, record a short voice sample from each consenting participant, and then allow the host to type a sentence that is played back as a synthetic clone of that participant's OWN recorded voice.
+The app should allow a host to create a demo session, add participants, collect explicit consent from each participant, record a short voice sample from each consenting participant, and then allow the host to type a sentence that is played back as participant's OWN recorded voice.
 
 ## Important safety rules (non-negotiable product requirements, not suggestions)
 1. This app must be consent-based by design.
@@ -10,7 +10,7 @@ The app should allow a host to create a demo session, add participants, collect 
 3. Do not record anyone without a visible consent step.
 4. Do not allow voice generation unless the participant has explicitly consented.
 5. Enforce consent checks in both the frontend and backend.
-6. Add clear warnings that generated audio is synthetic.
+6. Add clear warnings that generated audio is participants voice.
 7. Add a delete and revoke-consent button so a participant can remove their voice sample and withdraw consent.
 8. Store consent status, consent timestamp, and revocation timestamp.
 9. Add a safety note explaining that this technology can be misused for scams, impersonation, social engineering, fraud, and misinformation.
@@ -19,19 +19,17 @@ The app should allow a host to create a demo session, add participants, collect 
 12. No file uploads for voice data, ever. The app must only accept audio captured live through the browser microphone, in-app, during an active consent session. There must be no upload endpoint, no drag-and-drop, no "paste a link," and no way to import a pre-existing audio file as a voice sample. This is the control that prevents someone from typing their own consent phrase and then submitting a recording of a different person (e.g., a public figure, coworker, or family member) as the "sample."
 13. Bind the consent phrase and the voice sample to one continuous capture. The consent-phrase recording and the additional voice sample must be captured back-to-back in a single uninterrupted browser recording session (no pausing to swap source audio), and both clips must be tagged with the same capture session ID. The backend must reject an audio-sample submission whose capture session ID doesn't match an existing, completed consent-phrase recording for that participant.
 14. Filter what the host is allowed to generate. Before any generation request reaches the voice provider, run the input text through a content check that blocks/flags categories such as: financial authorization or payment instructions, one-time codes/PINs/passwords, requests to impersonate a named real-world public figure, urgent "send money now" / "wire transfer" phrasing, and impersonation of a person not in the session's participant list. Blocked attempts must be logged (not silently dropped) so the host dashboard can show "N generation attempts blocked by content policy."
-15. Embed the disclosure in the audio, not just the UI. Every generated clip must open or close with a spoken or clearly audible tone-based disclosure (e.g., a short spoken line or a distinct audio watermark tone) stating the audio is synthetic and was generated for a cybersecurity education demo. A UI label alone isn't enough, since the clip can be clipped out of the app and shared without it. This requirement is critical because the output will actually sound like the real person.
-16. Auto-expire everything. Consent records, audio samples, and generated clips must have an expiration policy (configurable TTL, default short — e.g., 24 hours) and must also be purged immediately when the host ends the session. No voice data should persist indefinitely by default.
+15. Auto-expire everything. Consent records, audio samples, and generated clips must have an expiration policy (configurable TTL, default short — e.g., 24 hours) and must also be purged immediately when the host ends the session. No voice data should persist indefinitely by default.
 
 ## Build the MVP using
 * Frontend: Next.js with TypeScript
 * Backend: FastAPI with Python
 * Database: SQLite
 * Audio capture: browser MediaRecorder API only (no file input elements anywhere in the audio-capture flow)
-* Voice generation: REAL zero-shot voice cloning (see the dedicated section below). Do NOT use browser text-to-speech as the primary output — it does not clone anyone's voice.
-* Structure the code so the content-filter step and audio-watermark step are provider-agnostic (they wrap any provider), and so a different consent-based voice provider could be swapped in later.
+* Voice generation: REAL zero-shot voice including participants tone, cadence and pitch.
 
 ## Voice generation — REAL cloning, not TTS
-The output MUST reproduce the participant's OWN recorded voice, not a generic system voice. Browser text-to-speech is explicitly NOT acceptable for the final output.
+The output MUST reproduce the participant's OWN recorded voice, not a generic system voice. 
 
 Implement a VoiceCloneProvider interface with a real zero-shot voice-cloning model that conditions generation on the participant's recorded audio sample:
 * Default provider (LocalCloneProvider): a local, open-source zero-shot TTS model that clones from a short reference clip and requires no paid API key. Use Coqui XTTS-v2 (or an equivalent such as F5-TTS or OpenVoice v2) running locally via a Python package. Its generate() method takes (a) the target text and (b) the participant's recorded reference audio, and returns speech in that participant's voice.
