@@ -50,10 +50,9 @@ Implement a VoiceCloneProvider interface with a real zero-shot voice-cloning mod
 8. Host types a sentence.
 9. Host selects a consenting participant.
 10. The sentence passes through the content filter; if blocked, the host sees why and the attempt is logged.
-11. App generates synthetic voice playback that clones the selected participant's recorded voice, with the spoken/tone disclosure embedded in the output audio.
+11. App generates participants voice playback that clones the selected participant's recorded voice, with the spoken/tone disclosure embedded in the output audio.
 12. App blocks generation for participants who have not consented, who revoked consent, or whose audio sample doesn't match a verified capture session.
-13. App labels every output as synthetic audio generated for a cybersecurity education demo, both visually and in the audio itself.
-14. Host can end the session at any time, which immediately purges all consent records, audio samples, and generated clips for that session.
+13. Host can end the session at any time, which immediately purges all consent records, audio samples, and generated clips for that session.
 
 ## Required pages
 * Host dashboard (including blocked-attempt counter)
@@ -116,7 +115,6 @@ SECURITY.md should include:
 * Storage risks.
 * Abuse risks.
 * Social engineering risks.
-* Synthetic audio labeling (UI + embedded watermark).
 * Content-filtering scope and known limitations (it's a keyword/heuristic stub, not production moderation).
 * Added risk that the output is a real voice clone, and why the embedded audio watermark matters.
 * Recommended production safeguards.
