@@ -9,6 +9,16 @@ what such a product's consent, safety-filter, and data-retention plumbing
 looks like end to end. Read [SECURITY.md](./SECURITY.md) before using it
 with real people, even in a classroom setting.
 
+## About this project
+
+This app is a proof-of-concept exploring what a single prompt can produce
+when handed to an AI coding tool -- built inside Visual Studio Code for
+**404 Adult Supervision, Episode 1**.
+
+404 Adult Supervision is a 3-person team where each member gives the same
+prompt to a different AI coding tool and just runs with whatever it
+builds, to see what actually comes out the other end.
+
 ## What this demo does
 
 1. A host creates a local session with a configurable data-retention TTL
@@ -193,3 +203,19 @@ data is fully purged both on TTL expiration and on host-initiated end.
 See [SECURITY.md](./SECURITY.md) for the full threat model, the
 safeguards this demo implements, and what's still missing for real-world
 production use.
+
+## License
+
+This project's own code (everything under `backend/app/`, `backend/tests/`,
+`frontend/app/`, `frontend/lib/`, and `frontend/__tests__/`) is licensed
+under the MIT license -- see [LICENSE](./LICENSE).
+
+That code depends on third-party open-source libraries (FastAPI, Next.js,
+React, Coqui TTS, PyTorch, and others) and, when `LocalCloneProvider` is
+enabled, downloads the pretrained XTTS-v2 model. **The model weights are
+covered by Coqui's own Public Model License (CPML), not this project's
+MIT license, and CPML restricts commercial use.** See
+[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for the full list of
+dependencies, their licenses, and what each one is used for -- read that
+before considering any use of this project beyond a local, educational
+demo.
