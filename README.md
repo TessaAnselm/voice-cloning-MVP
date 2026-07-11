@@ -54,29 +54,31 @@ with real people, even in a classroom setting.
 voice_cloning/
   backend/
     app/
-      main.py                 FastAPI app, CORS, background cleanup loop
-      config.py                All env-driven settings
-      database.py, models.py   SQLAlchemy setup + tables
-      schemas.py                Pydantic request/response models
-      content_filter.py         Keyword/heuristic safety filter (stub)
+      main.py                    FastAPI app, CORS, background cleanup loop
+      config.py                  All env-driven settings
+      database.py, models.py     SQLAlchemy setup + tables
+      schemas.py                 Pydantic request/response models
+      content_filter.py          Keyword/heuristic safety filter (stub)
       guards.py                  Consent / audio-sample / session guards
       generation_pipeline.py     Wraps provider calls with disclosure embedding
       cleanup.py                 TTL expiration + purge-on-end logic
       speech.py, audio_utils.py  TTS + WAV helpers (stdlib-only)
+      path_safety.py             Filesystem path-containment checks (CWE-23 hardening)
+      serializers.py             DB row -> API response shaping
       providers/                 VoiceCloneProvider interface + 2 impls
       routers/                   sessions / participants / generation / health
-    tests/                       pytest suite (see "Tests" below)
+    tests/  pytest suite (see "Tests" below)
     requirements.txt, .env.example, pytest.ini
   frontend/
     app/
-      page.tsx                          Create-session page
-      host/[sessionId]/page.tsx          Host dashboard
-      host/[sessionId]/generate/page.tsx Voice generation page
-      participant/[participantToken]/page.tsx        Consent page
-      participant/[participantToken]/record/page.tsx Recording page
-      safety/page.tsx                    Safety & risk explanation
-    lib/api.ts                 Typed API client
-    __tests__/                 Jest/RTL safety-flow tests
+      page.tsx                                 Create-session page
+      host/[sessionId]/page.tsx                Host dashboard
+      host/[sessionId]/generate/page.tsx       Voice generation page
+      participant/[participantToken]/page.tsx  Consent + continuous recording (single page)
+      safety/page.tsx                          Safety & risk explanation
+    lib/api.ts  Typed API client
+    lib/id.ts   crypto.randomUUID() fallback helper
+    __tests__/  Jest/RTL safety-flow tests
   README.md, SECURITY.md
 ```
 
