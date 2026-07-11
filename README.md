@@ -19,6 +19,20 @@ when handed to an AI coding tool -- built inside Visual Studio Code for
 prompt to a different AI coding tool and just runs with whatever it
 builds, to see what actually comes out the other end.
 
+### Project documents
+
+- [prompt.txt](./prompt.txt) -- the original prompt this app was built from.
+- [history.txt](./history.txt) -- what was built to match that prompt, and
+  everything added beyond it during follow-up development.
+- [findings.md](./findings.md) -- notable issues found while testing the
+  running app (a content-filter false positive, a missing
+  offensive-language filter, and a voice-sample quality issue).
+- [SECURITY.md](./SECURITY.md) -- threat model, implemented safeguards,
+  and known gaps.
+- [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) -- open-source
+  dependencies this project relies on and their licenses.
+- [LICENSE](./LICENSE) -- license for this project's own code.
+
 ## What this demo does
 
 1. A host creates a local session with a configurable data-retention TTL
