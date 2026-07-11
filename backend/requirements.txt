@@ -1,0 +1,25 @@
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29,<1.0
+sqlalchemy>=2.0,<3.0
+pydantic>=2.5,<3.0
+python-multipart>=0.0.9
+pytest>=8.0
+httpx>=0.27
+
+# Optional: offline system-TTS voice used for the spoken disclosure and by
+# BrowserTTSProvider (the non-cloning fallback). The app still runs and
+# falls back to a non-speech tone placeholder if this isn't installed or
+# the OS has no speech engine available.
+pyttsx3>=2.90
+
+# Optional, NOT required to run the demo: enables real local voice cloning
+# via Coqui XTTS-v2 in LocalCloneProvider. Heavy (torch + ~2GB of model
+# weights downloaded on first use). Without these installed, the app
+# automatically and visibly falls back to BrowserTTSProvider. See README.md
+# ("Enabling real local voice cloning") for the install command and the
+# transformers version pin below (required as of coqui-tts 0.27.x --
+# transformers>=5.0 removed an internal helper XTTS's code still imports).
+# coqui-tts[codec]>=0.27
+# torch
+# torchaudio
+# transformers==4.57.6

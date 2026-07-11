@@ -1,0 +1,162 @@
+VOICE CLONING CONSENT DEMO - BUILD HISTORY
+============================================
+
+PART 1: WHAT WAS BUILT (per the original prompt)
+---------------------------------------------------
+
+The prompt asked for a local, consent-based AI voice-cloning proof-of-concept
+web app for cybersecurity education, with a fixed tech stack (Next.js/TS
+frontend, FastAPI/Python backend, SQLite, MediaRecorder-only audio capture,
+a VoiceCloneProvider interface), a specific list of safety requirements,
+required pages, required endpoints, required DB tables, and required tests.
+All of it was built:
+
+Backend (FastAPI + SQLAlchemy/SQLite)
+  - DB tables: sessions, participants, capture_sessions, audio_samples,
+    generations (blocked attempts stored in generations with blocked=True
+    rather than a separate table, per the prompt's stated option).
+  - Endpoints: POST /sessions, GET /sessions/{id}, DELETE /sessions/{id},
+    POST /sessions/{id}/participants, POST /participants/{id}/consent,
+    POST /participants/{id}/revoke-consent,
+    POST /participants/{id}/audio-sample, DELETE /participants/{id}/audio-sample,
+    POST /generate-voice, GET /health.
+  - content_filter.py: keyword/heuristic filter blocking financial-authorization
+    language, payment instructions, wire-transfer requests, OTP/PIN/password
+    requests, urgency manipulation, public-figure impersonation, and
+    impersonation of non-participants. Documented as a stub, not
+    production-grade, per the prompt's explicit instruction.
+  - guards.py: server-side consent/revocation/session/audio-sample validation,
+    independent of anything the frontend checks.
+  - VoiceCloneProvider interface with LocalCloneProvider (Coqui XTTS-v2,
+    conditions on the participant's own live-recorded sample) and
+    BrowserTTSProvider (fallback only, labeled "does not clone voices",
+    never the default).
+  - generation_pipeline.py: wraps every provider call so content filtering,
+    consent checks, and spoken-disclosure embedding apply identically
+    regardless of which provider ran.
+  - capture_session_id binding: one continuous browser recording (consent
+    phrase, then reference sample) is tagged with one client-generated id;
+    the backend rejects a sample submission unless a completed
+    consent-phrase segment for that id already exists for that participant.
+  - cleanup.py: TTL-based expiration (default 24h, host-configurable) plus
+    immediate purge of all consent records, audio samples, and generated
+    clips when the host ends a session.
+  - 25 pytest tests proving all 13 required guarantees: consent-missing
+    block, revoked-consent block, no-sample block, capture_session_id
+    mismatch rejection, no upload/import endpoint exists, flagged-text
+    block before the provider runs, blocked attempts logged, provider
+    called with the participant's own reference sample, generation fails
+    without a verified sample, TTL expiration purge, end-session purge,
+    BrowserTTSProvider never default, and the fallback flag surfaced to
+    the UI.
+
+Frontend (Next.js + TypeScript)
+  - Create-session page (TTL setting, plain-language explanation).
+  - Host dashboard (participants table with consent/audio/revoked/
+    expiration status, blocked-attempt counter, end-session button).
+  - Participant consent page (disclosure, explicit consent button).
+  - Participant recording page (MediaRecorder-only, continuous capture,
+    no file input anywhere).
+  - Voice generation page (participant picker, text input, content-filter
+    result, blocked reason, audio playback, AI-generated warning).
+  - Safety & risk explanation page (misuse risks, safeguards implemented,
+    safeguards still missing for real production use).
+  - Jest/RTL tests: no upload/import affordance exists, consent is gated
+    before recording, fallback-mode warning is shown when triggered.
+
+Docs
+  - README.md (setup, flow walkthrough, test instructions).
+  - SECURITY.md (threat model, safeguard-to-code mapping table, explicit
+    "known gaps" list for anyone tempted to use this as-is in production).
+  - .env.example at root, backend, and frontend.
+
+
+PART 2: IMPROVEMENTS NOT IN THE ORIGINAL PROMPT
+---------------------------------------------------
+
+These were added either as reasonable engineering judgment calls during
+the build, or in response to follow-up requests after the initial build
+was delivered.
+
+1. Path-traversal hardening (security scan follow-up, not requested by
+   the prompt). A Snyk SAST scan found 3 High-severity CWE-23 findings:
+   client-controlled upload filenames reaching path construction, and
+   DB-sourced file paths reaching FileResponse/unlink without containment
+   checks. Fixed by mapping stored file extensions from the validated
+   audio/* content-type instead of trusting the client filename, and by
+   adding basename-rejoin + os.path.commonpath containment checks
+   immediately before every filesystem read/delete/serve call. Re-scanned
+   to 0 issues.
+
+2. Two pragmatic read-only endpoints beyond the prompt's required list,
+   needed to make the UI actually functional:
+     - GET /participants/token/{token} (resolves a participant's private
+       link to their public consent/sample state).
+     - GET /generated-audio/{generation_id} (serves a generated clip's
+       audio bytes for playback).
+
+3. Three-tier spoken-disclosure/fallback speech synthesis instead of a
+   single approach: macOS `say` CLI first (produces real, directly
+   parseable WAV output, avoiding the fact that Python 3.13 removed the
+   stdlib `aifc` module needed to decode pyttsx3's macOS AIFF-C output),
+   then pyttsx3 (Windows/Linux), then a non-speech tone placeholder so the
+   app never crashes even with no system TTS engine available.
+
+4. All WAV handling (resampling, concatenation, mono downmixing) written
+   against the stdlib `wave`/`array` modules with a hand-rolled linear
+   resampler, specifically to avoid a hard dependency on ffmpeg/pydub/
+   audioop (the latter was removed in Python 3.13) -- keeps the "local,
+   simple, runnable" requirement intact without a native audio toolchain.
+
+5. Merged the participant consent page and recording page into a single
+   page/URL with a phase-based state machine (requested after initial
+   build: "navigating through the pages is complicated"). Consent click
+   now transitions in-place to the recording UI on the same page instead
+   of a route navigation. Host dashboard and the generation page were
+   deliberately kept separate, since generation is a host-only action for
+   an arbitrary participant, not something that belongs on a participant's
+   own page.
+
+6. Verified and documented real local voice cloning end-to-end (requested
+   after initial build: "I want it to actually generate voice not
+   fallback to synthetic"). Installed and pinned the actual working
+   dependency set -- torch, torchaudio, coqui-tts[codec], and
+   transformers==4.57.6 (newer transformers removed a helper XTTS's code
+   still imports) -- downloaded the XTTS-v2 weights, and confirmed via the
+   live API that provider_used == "local_clone" and fallback_active ==
+   false. Documented every install gotcha in README.md so it's
+   reproducible, since none of this was pinned or verified in the
+   original build (LocalCloneProvider was written but never exercised
+   against a real installed model).
+
+7. Host dashboard: replaced the "Copy link" button with an "Open link"
+   button that opens the participant's page directly in a new tab
+   (requested follow-up UX improvement).
+
+8. Voice generation page: added a persistent, replayable generation
+   history instead of only showing the most recent result. Every clip
+   generated on that page (blocked or successful) stays listed with its
+   own audio player so earlier clips can be replayed after generating new
+   ones (requested follow-up: "allow voice replay").
+
+9. lib/id.ts: a small generateId() fallback helper, since crypto.randomUUID()
+   is unavailable in the Jest/jsdom test environment (and technically
+   requires a secure context in real browsers). Replaced direct
+   crypto.randomUUID() calls everywhere (capture_session_id generation,
+   history-entry keys) with this safer helper -- a robustness fix
+   surfaced by writing the replay-history feature's tests.
+
+10. Bumped Next.js from 14.2.5 to the patched 14.2.35 after `npm audit`
+    flagged the pinned version as critically vulnerable (cache poisoning,
+    DoS, SSRF advisories) -- not something the original prompt specified a
+    version for, but worth pinning to a non-vulnerable release rather than
+    leaving a known-CVE dependency in a security-education demo.
+
+11. Added a .gitignore (venvs, node_modules, .next, sqlite db files,
+    stored audio) since the prompt didn't specify one but the project
+    wasn't usable as a shareable repo without it.
+
+12. Ran a Snyk SAST scan on all newly generated first-party code multiple
+    times throughout the build (per the user's standing global
+    instructions, not the app prompt itself) and iterated until 0 issues
+    remained.

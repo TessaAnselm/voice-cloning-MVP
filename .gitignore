@@ -1,0 +1,18 @@
+# Backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.db
+backend/storage/audio_samples/*
+backend/storage/generated/*
+!backend/storage/audio_samples/.gitkeep
+!backend/storage/generated/.gitkeep
+backend/.env
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+
+# OS
+.DS_Store
