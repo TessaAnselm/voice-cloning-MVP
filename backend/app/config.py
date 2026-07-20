@@ -71,3 +71,16 @@ HOST_CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","
 # a single machine for short clips, not a media platform.
 MAX_AUDIO_UPLOAD_BYTES = int(os.getenv("MAX_AUDIO_UPLOAD_BYTES", str(20 * 1024 * 1024)))  # 20 MB
 
+# Reject reference samples shorter than this (see findings.md Finding 3: a
+# too-short clip produces a weak speaker embedding, which XTTS renders as
+# garbled/unintelligible speech instead of erroring out).
+MIN_AUDIO_SAMPLE_DURATION_SECONDS = float(os.getenv("MIN_AUDIO_SAMPLE_DURATION_SECONDS", "5"))
+
+# Reject reference samples whose peak level (dBFS, reported by the browser
+# after decoding its own recording) is below this. A silent/near-silent
+# clip (e.g. muted mic, wrong input device) still has a normal duration but
+# gives XTTS no real voice to condition on, producing a generic/unrelated-
+# sounding clone instead of erroring out. -50 dBFS is well below any actual
+# recorded speech but well above true silence/room noise floor.
+MIN_AUDIO_SAMPLE_PEAK_DBFS = float(os.getenv("MIN_AUDIO_SAMPLE_PEAK_DBFS", "-50"))
+

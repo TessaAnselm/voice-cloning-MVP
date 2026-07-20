@@ -203,6 +203,26 @@ button.danger.outline {
   color: var(--text-dim);
 }
 
+.mic-meter {
+  height: 10px;
+  border-radius: 999px;
+  background: #0d0f13;
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+  margin: 4px 0 16px;
+}
+
+.mic-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ok);
+  transition: width 80ms linear, background-color 150ms linear;
+}
+
+.mic-meter-fill.low {
+  background: var(--danger);
+}
+
 .phrase-block {
   background: #0d0f13;
   border: 1px solid var(--panel-border);

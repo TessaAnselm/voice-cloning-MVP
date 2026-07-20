@@ -106,7 +106,11 @@ def upload_audio_sample(client, participant_id: str, capture_session_id: str, fi
     fake_audio_bytes = b"RIFF....WAVEfmt fake audio bytes for test purposes only"
     return client.post(
         f"/participants/{participant_id}/audio-sample",
-        data={"capture_session_id": capture_session_id, "duration_seconds": "3.5"},
+        data={
+            "capture_session_id": capture_session_id,
+            "duration_seconds": "8.0",
+            "peak_level_dbfs": "-20.0",
+        },
         files={"file": (filename, fake_audio_bytes, "audio/wav")},
     )
 

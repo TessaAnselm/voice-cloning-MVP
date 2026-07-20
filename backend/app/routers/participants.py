@@ -19,7 +19,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session as DBSession
 
 from app import models, schemas
-from app.config import AUDIO_SAMPLE_DIR, CAPTURE_SESSION_MAX_GAP_SECONDS, MAX_AUDIO_UPLOAD_BYTES
+from app.config import (
+    AUDIO_SAMPLE_DIR,
+    CAPTURE_SESSION_MAX_GAP_SECONDS,
+    MAX_AUDIO_UPLOAD_BYTES,
+    MIN_AUDIO_SAMPLE_DURATION_SECONDS,
+    MIN_AUDIO_SAMPLE_PEAK_DBFS,
+)
 from app.database import get_db
 from app.path_safety import UnsafePathError, ensure_within
 from app.serializers import participant_to_out
@@ -174,6 +180,7 @@ async def submit_audio_sample(
     participant_id: str,
     capture_session_id: str = Form(...),
     duration_seconds: float | None = Form(default=None),
+    peak_level_dbfs: float | None = Form(default=None),
     file: UploadFile = File(...),
     db: DBSession = Depends(get_db),
 ):
@@ -230,6 +237,23 @@ async def submit_audio_sample(
         raise HTTPException(status_code=413, detail="Audio sample too large.")
     if len(body) == 0:
         raise HTTPException(status_code=400, detail="Empty audio upload.")
+    if duration_seconds is None or duration_seconds < MIN_AUDIO_SAMPLE_DURATION_SECONDS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Voice sample is too short "
+                f"(minimum {MIN_AUDIO_SAMPLE_DURATION_SECONDS:g} seconds). "
+                "Please redo the recording and speak for longer during the sample segment."
+            ),
+        )
+    if peak_level_dbfs is None or peak_level_dbfs < MIN_AUDIO_SAMPLE_PEAK_DBFS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Voice sample sounds silent or extremely quiet. Please check your microphone "
+                "(input device, mute, and volume) and record again, speaking clearly."
+            ),
+        )
 
     ext = _CONTENT_TYPE_EXTENSIONS.get(file.content_type, _DEFAULT_AUDIO_EXTENSION)
     # participant.id is a server-generated UUID (models.py), never user
