@@ -81,3 +81,44 @@ preview/re-record prompt if the sample sounds unusable. A production
 version should validate sample quality (minimum duration, non-silence)
 before marking `sample_completed`, and ideally let the participant listen
 back to their own recording before submitting it.
+
+**Update:** a minimum-duration check (`MIN_AUDIO_SAMPLE_DURATION_SECONDS`,
+default 5s) and a minimum-peak-level check (`MIN_AUDIO_SAMPLE_PEAK_DBFS`,
+default -50 dBFS) were added to `submit_audio_sample` in
+`backend/app/routers/participants.py`, plus a live mic-level meter on the
+participant recording page. Both reject/flag a clip like the one described
+above before it can be marked `sample_completed`.
+
+## Finding 4: Inconsistent clone accuracy across samples from the same person -- traced to a microphone issue
+
+**What happened:**
+Across one test session, three participants (Host 1, Host 2, Host 3) were
+recorded as the same real speaker. Only Host 3's generated clip actually
+sounded like that speaker; Host 1's and Host 2's generated clips did not,
+despite all three passing the duration and peak-level checks added in
+Finding 3's update (12-15s duration, -24 to -26 dB mean volume, -4 to -8 dB
+peak volume -- all comfortably within accepted range).
+
+**Root cause:**
+Confirmed to be a microphone issue on the recording end, not a code or
+model-selection bug -- the pipeline used `local_clone` (real cloning, not
+fallback) for all three, and none of the automated checks (duration,
+silence/peak level) flagged Host 1 or Host 2's samples as defective. That
+is the gap: those checks only catch a clip being *too short* or *too
+quiet*, not a poor-quality or wrong-device microphone capturing a
+technically-loud-enough but tonally distorted/misleading signal (e.g.
+wrong input device selected, a low-quality/muffled mic, heavy
+background noise under the -50 dBFS floor's noise gate, or AGC/processing
+on a particular device altering the captured voice). A clip can pass every
+current automated check and still not carry enough of the speaker's real
+vocal characteristics for XTTS to clone accurately.
+
+**Gap this points to:**
+There is still no check for microphone *quality* (device selection,
+frequency response, noise floor, or automatic gain control artifacts) --
+only duration and peak level. A production version would need per-device
+guidance (recommend a known-good input device), a background-noise-floor
+measurement distinct from silence detection, and/or a
+listen-back-before-submitting step so the participant (not just an
+automated threshold) can judge whether the capture actually sounds like
+them before it's accepted as a reference sample.
