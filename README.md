@@ -116,7 +116,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # optional, defaults are already safe for local use
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8010
 ```
 
 The SQLite DB file and `storage/` directory are created automatically on
