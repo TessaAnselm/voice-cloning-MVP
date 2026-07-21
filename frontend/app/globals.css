@@ -223,6 +223,11 @@ button.danger.outline {
   background: var(--danger);
 }
 
+.sample-preview {
+  width: 100%;
+  margin: 4px 0 16px;
+}
+
 .phrase-block {
   background: #0d0f13;
   border: 1px solid var(--panel-border);

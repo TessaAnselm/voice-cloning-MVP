@@ -119,11 +119,15 @@ export const api = {
     participantId: string,
     captureSessionId: string,
     blob: Blob,
-    durationSeconds: number
+    durationSeconds: number,
+    peakLevelDbfs?: number
   ) => {
     const form = new FormData();
     form.append("capture_session_id", captureSessionId);
     form.append("duration_seconds", String(durationSeconds));
+    if (peakLevelDbfs !== undefined) {
+      form.append("peak_level_dbfs", String(peakLevelDbfs));
+    }
     form.append("file", blob, "reference-sample.webm");
     return request<ParticipantOut>(`/participants/${participantId}/audio-sample`, {
       method: "POST",
